@@ -15,6 +15,7 @@ class BaseAgentRunHooks(Generic[TContext]):
         run_context: ContextWrapper[TContext],
         tool: FunctionTool,
         tool_args: dict | None,
+        llm_response: LLMResponse | None = None,
     ): ...
     async def on_tool_end(
         self,
@@ -22,6 +23,7 @@ class BaseAgentRunHooks(Generic[TContext]):
         tool: FunctionTool,
         tool_args: dict | None,
         tool_result: mcp.types.CallToolResult | None,
+        llm_response: LLMResponse | None = None,
     ): ...
     async def on_agent_done(
         self,

@@ -411,18 +411,25 @@ def register_on_llm_response(**kwargs):
 
 def register_on_using_llm_tool(**kwargs):
     """当调用函数工具前的事件。
-    会传入 tool 和 tool_args 参数。
+    会传入 tool 和 tool_args 参数；可选接收 llm_response（触发此次工具调用的 LLM 响应）。
 
     Examples:
     ```py
     from astrbot.core.agent.tool import FunctionTool
 
+    # 仅接收必需参数（兼容旧插件）
     @on_using_llm_tool()
     async def test(self, event: AstrMessageEvent, tool: FunctionTool, tool_args: dict | None) -> None:
         ...
+
+    # 可选接收 llm_response（from astrbot.api.provider import LLMResponse）
+    @on_using_llm_tool()
+    async def test2(self, event: AstrMessageEvent, tool: FunctionTool, tool_args: dict | None,
+                    llm_response: LLMResponse | None = None) -> None:
+        ...
     ```
 
-    请务必接收三个参数：event, tool, tool_args
+    请务必接收 event, tool, tool_args；llm_response 为可选，用于多插件兼容。
 
     """
 
@@ -435,19 +442,26 @@ def register_on_using_llm_tool(**kwargs):
 
 def register_on_llm_tool_respond(**kwargs):
     """当调用函数工具后的事件。
-    会传入 tool、tool_args 和 tool 的调用结果 tool_result 参数。
+    会传入 tool、tool_args、tool_result；可选接收 llm_response（触发此次工具调用的 LLM 响应）。
 
     Examples:
     ```py
     from astrbot.core.agent.tool import FunctionTool
     from mcp.types import CallToolResult
 
+    # 仅接收必需参数（兼容旧插件）
     @on_llm_tool_respond()
     async def test(self, event: AstrMessageEvent, tool: FunctionTool, tool_args: dict | None, tool_result: CallToolResult | None) -> None:
         ...
+
+    # 可选接收 llm_response（from astrbot.api.provider import LLMResponse）
+    @on_llm_tool_respond()
+    async def test2(self, event: AstrMessageEvent, tool: FunctionTool, tool_args: dict | None,
+                    tool_result: CallToolResult | None, llm_response: LLMResponse | None = None) -> None:
+        ...
     ```
 
-    请务必接收四个参数：event, tool, tool_args, tool_result
+    请务必接收 event, tool, tool_args, tool_result；llm_response 为可选，用于多插件兼容。
 
     """
 

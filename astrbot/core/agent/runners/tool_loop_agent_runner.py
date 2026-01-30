@@ -426,6 +426,7 @@ class ToolLoopAgentRunner(BaseAgentRunner[TContext]):
                         self.run_context,
                         func_tool,
                         valid_params,
+                        llm_response=llm_response,
                     )
                 except Exception as e:
                     logger.error(f"Error in on_tool_start hook: {e}", exc_info=True)
@@ -529,6 +530,7 @@ class ToolLoopAgentRunner(BaseAgentRunner[TContext]):
                         func_tool,
                         func_tool_args,
                         _final_resp,
+                        llm_response=llm_response,
                     )
                 except Exception as e:
                     logger.error(f"Error in on_tool_end hook: {e}", exc_info=True)

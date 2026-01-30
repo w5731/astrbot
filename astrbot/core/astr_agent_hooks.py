@@ -3,6 +3,7 @@ from typing import Any
 from mcp.types import CallToolResult
 
 from astrbot.core.agent.hooks import BaseAgentRunHooks
+from astrbot.core.provider.entities import LLMResponse
 from astrbot.core.agent.message import Message
 from astrbot.core.agent.run_context import ContextWrapper
 from astrbot.core.agent.tool import FunctionTool
@@ -31,12 +32,14 @@ class MainAgentHooks(BaseAgentRunHooks[AstrAgentContext]):
         run_context: ContextWrapper[AstrAgentContext],
         tool: FunctionTool[Any],
         tool_args: dict | None,
+        llm_response: LLMResponse | None = None,
     ):
         await call_event_hook(
             run_context.context.event,
             EventType.OnUsingLLMToolEvent,
             tool,
             tool_args,
+            llm_response=llm_response,
         )
 
     async def on_tool_end(
@@ -45,6 +48,7 @@ class MainAgentHooks(BaseAgentRunHooks[AstrAgentContext]):
         tool: FunctionTool[Any],
         tool_args: dict | None,
         tool_result: CallToolResult | None,
+        llm_response: LLMResponse | None = None,
     ):
         run_context.context.event.clear_result()
         await call_event_hook(
@@ -53,6 +57,7 @@ class MainAgentHooks(BaseAgentRunHooks[AstrAgentContext]):
             tool,
             tool_args,
             tool_result,
+            llm_response=llm_response,
         )
 
         # special handle web_search_tavily
