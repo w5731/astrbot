@@ -29,11 +29,11 @@ addons/plugins
 astrbot/builtin_stars/python_interpreter/workplace
 tests/astrbot_plugin_openai
 
-# Dashboard
+# Dashboard (only ignore root-level package files; dashboard/package.json is tracked for CI)
 dashboard/node_modules/
 dashboard/dist/
 package-lock.json
-package.json
+/package.json
 yarn.lock
 
 # Operating System
