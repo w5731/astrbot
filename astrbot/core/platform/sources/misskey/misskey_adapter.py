@@ -25,10 +25,10 @@ from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
 from .misskey_event import MisskeyPlatformEvent
 from .misskey_utils import (
-    add_at_mention_if_needed,
     cache_room_info,
     cache_user_info,
     create_base_message,
+    extract_room_id_from_session_id,
     extract_sender_info,
     format_poll,
     is_valid_room_session_id,
@@ -96,6 +96,8 @@ class MisskeyPlatformAdapter(Platform):
         self.client_self_id = ""
         self._bot_username = ""
         self._user_cache = {}
+        # room_id -> sender_id, for prepending @ in room replies
+        self._room_last_sender: dict[str, str] = {}
 
     def meta(self) -> PlatformMetadata:
         default_config = {
@@ -322,6 +324,7 @@ class MisskeyPlatformAdapter(Platform):
                 logger.debug(
                     f"[Misskey] 检查群聊消息: '{raw_text}', 机器人用户名: '{self._bot_username}'",
                 )
+                self._room_last_sender[str(room_id)] = sender_id
 
                 message = await self.convert_room_message(data)
                 logger.info(f"[Misskey] 处理群聊消息: {message.message_str[:50]}...")
@@ -379,20 +382,16 @@ class MisskeyPlatformAdapter(Platform):
 
             text, has_at_user = serialize_message_chain(message_chain.chain)
 
-            if not has_at_user and session_id:
-                # 从session_id中提取用户ID用于缓存查询
-                # session_id格式为: "chat%<user_id>" 或 "room%<room_id>" 或 "note%<user_id>"
-                user_id_for_cache = None
-                if "%" in session_id:
-                    parts = session_id.split("%")
-                    if len(parts) >= 2:
-                        user_id_for_cache = parts[1]
-
-                user_info = None
-                if user_id_for_cache:
-                    user_info = self._user_cache.get(user_id_for_cache)
-
-                text = add_at_mention_if_needed(text, user_info, has_at_user)
+            # Private chat: no @ prefix (already targeted). Room chat: prepend one @ to the user who triggered the reply.
+            if not has_at_user and session_id and is_valid_room_session_id(session_id):
+                room_id = extract_room_id_from_session_id(session_id)
+                last_sender_id = self._room_last_sender.get(room_id)
+                user_info = (
+                    self._user_cache.get(last_sender_id) if last_sender_id else None
+                )
+                if user_info and user_info.get("username"):
+                    body = (text or "").strip()
+                    text = f"@{user_info['username']}\n{body}" if body else f"@{user_info['username']}"
 
             # 检查是否有文件组件
             has_file_components = any(
@@ -555,8 +554,6 @@ class MisskeyPlatformAdapter(Platform):
                 logger.debug("[Misskey] 并发上传过程中出现异常，继续发送文本")
 
             if session_id and is_valid_room_session_id(session_id):
-                from .misskey_utils import extract_room_id_from_session_id
-
                 room_id = extract_room_id_from_session_id(session_id)
                 if fallback_urls:
                     appended = "\n" + "\n".join(fallback_urls)
@@ -576,15 +573,15 @@ class MisskeyPlatformAdapter(Platform):
                     if fallback_urls:
                         appended = "\n" + "\n".join(fallback_urls)
                         text = (text or "") + appended
-                    payload: dict[str, Any] = {"toUserId": user_id, "text": text}
+                    chat_payload: dict[str, Any] = {"toUserId": user_id, "text": text}
                     if file_ids:
                         # 聊天消息只支持单个文件，使用 fileId 而不是 fileIds
-                        payload["fileId"] = file_ids[0]
+                        chat_payload["fileId"] = file_ids[0]
                         if len(file_ids) > 1:
                             logger.warning(
                                 f"[Misskey] 聊天消息只支持单个文件，忽略其余 {len(file_ids) - 1} 个文件",
                             )
-                    await self.api.send_message(payload)
+                    await self.api.send_message(chat_payload)
                 else:
                     # 回退到发帖逻辑
                     # 去掉 session_id 中的 note% 前缀以匹配 user_cache 的键格式

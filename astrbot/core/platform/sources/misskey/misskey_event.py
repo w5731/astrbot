@@ -13,6 +13,7 @@ from .misskey_utils import (
     extract_user_id_from_session_id,
     is_valid_room_session_id,
     is_valid_user_session_id,
+    normalize_nickname,
     resolve_visibility_from_raw_message,
     serialize_message_chain,
 )
@@ -88,10 +89,7 @@ class MisskeyPlatformEvent(AstrMessageEvent):
                     user_data = raw_message.get("user", {})
                     user_info = {
                         "username": user_data.get("username", ""),
-                        "nickname": user_data.get(
-                            "name",
-                            user_data.get("username", ""),
-                        ),
+                        "nickname": normalize_nickname(user_data),
                     }
                     content = add_at_mention_if_needed(content, user_info, has_at)
 

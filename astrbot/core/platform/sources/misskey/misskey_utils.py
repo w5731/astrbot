@@ -312,11 +312,25 @@ def format_poll(poll: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def normalize_nickname(sender: dict[str, Any]) -> str:
+    """Normalize display name: name if set, else username, else username@host for remote users. Always returns str."""
+    if not isinstance(sender, dict):
+        return ""
+    username = sender.get("username") or ""
+    name = sender.get("name")
+    if name is not None and isinstance(name, str) and name.strip():
+        return name.strip()
+    host = sender.get("host")
+    if host is not None and isinstance(host, str) and host.strip():
+        return f"{username}@{host}" if username else host
+    return username
+
+
 def extract_sender_info(
     raw_data: dict[str, Any],
     is_chat: bool = False,
 ) -> dict[str, Any]:
-    """提取发送者信息"""
+    """提取发送者信息。nickname 归一化：name 为 null/空时用 username，远程用户用 username@host，保证始终为 str。"""
     if is_chat:
         sender = raw_data.get("fromUser", {})
         sender_id = str(sender.get("id", "") or raw_data.get("fromUserId", ""))
@@ -324,11 +338,14 @@ def extract_sender_info(
         sender = raw_data.get("user", {})
         sender_id = str(sender.get("id", ""))
 
+    username = sender.get("username") or ""
+    nickname = normalize_nickname(sender)
+
     return {
         "sender": sender,
         "sender_id": sender_id,
-        "nickname": sender.get("name", sender.get("username", "")),
-        "username": sender.get("username", ""),
+        "nickname": nickname,
+        "username": username,
     }
 
 
