@@ -498,7 +498,7 @@ export default {
                 },
                 { title: this.tm('table.headers.createdAt'), key: 'created_at', sortable: true, width: '180px' },
                 { title: this.tm('table.headers.updatedAt'), key: 'updated_at', sortable: true, width: '180px' },
-                { title: this.tm('table.headers.actions'), key: 'actions', sortable: false, align: 'center' }
+                { title: this.tm('table.headers.actions'), key: 'actions', sortable: false, align: 'center', width: '220px' }
             ];
         },
 
@@ -1225,8 +1225,11 @@ export default {
 <style>
 .actions-wrapper {
     display: flex;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    gap: 8px;
+    align-items: center;
+    gap: 4px;
+    min-width: 200px;
 }
 
 .action-button {
