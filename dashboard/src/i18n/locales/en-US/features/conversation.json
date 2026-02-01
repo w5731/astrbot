@@ -36,6 +36,8 @@
   "actions": {
     "view": "View",
     "edit": "Edit",
+    "download": "Download",
+    "upload": "Upload",
     "delete": "Delete"
   },
   "messageTypes": {
@@ -79,6 +81,13 @@
       "cancel": "Cancel",
       "confirm": "Batch Delete",
       "warning": "Warning: This action cannot be undone!"
+    },
+    "uploadConfirm": {
+      "title": "Upload Conversation Data",
+      "message": "Overwrite conversation \"{title}\" with the selected JSON file?",
+      "warning": "This will overwrite the existing data in the database and cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Confirm Upload"
     }
   },
   "messages": {
@@ -97,6 +106,10 @@
     "batchDeletePartial": "Delete completed: {deleted} successful, {failed} failed",
     "exportSuccess": "Export successful",
     "exportError": "Export failed",
-    "noItemSelectedForExport": "Please select conversations to export first"
+    "noItemSelectedForExport": "Please select conversations to export first",
+    "downloadSuccess": "Download successful",
+    "uploadSuccess": "Upload successful, data overwritten",
+    "uploadError": "Upload failed",
+    "uploadInvalidFormat": "Invalid JSON: file must contain a history array or be an array"
   }
 } 

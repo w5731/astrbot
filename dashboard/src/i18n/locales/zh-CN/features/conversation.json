@@ -36,6 +36,8 @@
   "actions": {
     "view": "查看",
     "edit": "编辑",
+    "download": "下载",
+    "upload": "上传",
     "delete": "删除"
   },
   "messageTypes": {
@@ -79,6 +81,13 @@
       "cancel": "取消",
       "confirm": "批量删除",
       "warning": "警告：此操作不可撤销！"
+    },
+    "uploadConfirm": {
+      "title": "上传对话数据",
+      "message": "确定要用所选 JSON 文件覆盖对话「{title}」的数据吗？",
+      "warning": "此操作将直接覆盖数据库中的原数据，不可恢复。",
+      "cancel": "取消",
+      "confirm": "确认上传"
     }
   },
   "messages": {
@@ -97,6 +106,10 @@
     "batchDeletePartial": "删除完成：成功 {deleted} 个，失败 {failed} 个",
     "exportSuccess": "导出成功",
     "exportError": "导出失败",
-    "noItemSelectedForExport": "请先选择要导出的对话"
+    "noItemSelectedForExport": "请先选择要导出的对话",
+    "downloadSuccess": "下载成功",
+    "uploadSuccess": "上传成功，已覆盖原数据",
+    "uploadError": "上传失败",
+    "uploadInvalidFormat": "JSON 文件格式无效，需包含 history 数组或为数组本身"
   }
 } 

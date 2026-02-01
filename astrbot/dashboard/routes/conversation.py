@@ -33,6 +33,7 @@ class ConversationRoute(Route):
                 self.update_history,
             ),
             "/conversation/export": ("POST", self.export_conversations),
+            "/conversation/upload_single": ("POST", self.upload_single),
         }
         self.db_helper = db_helper
         self.conv_mgr = core_lifecycle.conversation_manager
@@ -373,3 +374,53 @@ class ConversationRoute(Route):
         except Exception as e:
             logger.error(f"批量导出对话失败: {e!s}\n{traceback.format_exc()}")
             return Response().error(f"批量导出对话失败: {e!s}").__dict__
+
+    async def upload_single(self):
+        """Upload a single conversation's JSON data and overwrite the existing one. Validates JSON with same logic as update_history."""
+        try:
+            data = await request.get_json()
+            user_id = data.get("user_id")
+            cid = data.get("cid")
+            history = data.get("history")
+
+            if not user_id or not cid:
+                return Response().error("缺少必要参数: user_id 和 cid").__dict__
+
+            if history is None:
+                return Response().error("缺少必要参数: history").__dict__
+
+            # Validate JSON: same as update_history
+            try:
+                if isinstance(history, list):
+                    history_parsed = history
+                else:
+                    history_parsed = json.loads(history)
+                if not isinstance(history_parsed, list):
+                    return (
+                        Response()
+                        .error("history 必须是有效的 JSON 数组").__dict__
+                    )
+            except json.JSONDecodeError:
+                return (
+                    Response()
+                    .error("history 必须是有效的 JSON 字符串或数组").__dict__
+                )
+
+            conversation = await self.conv_mgr.get_conversation(
+                unified_msg_origin=user_id,
+                conversation_id=cid,
+            )
+            if not conversation:
+                return Response().error("对话不存在").__dict__
+
+            await self.conv_mgr.update_conversation(
+                unified_msg_origin=user_id,
+                conversation_id=cid,
+                history=history_parsed,
+            )
+
+            return Response().ok({"message": "对话数据上传成功，已覆盖原数据"}).__dict__
+
+        except Exception as e:
+            logger.error(f"上传对话失败: {e!s}\n{traceback.format_exc()}")
+            return Response().error(f"上传对话失败: {e!s}").__dict__

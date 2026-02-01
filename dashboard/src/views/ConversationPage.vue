@@ -65,6 +65,8 @@
 
                 <v-divider></v-divider>
 
+                <input ref="uploadFileInput" type="file" accept=".json" style="display: none" @change="onUploadFileChange" />
+
                 <v-card-text class="pa-0">
                     <v-data-table v-model="selectedItems" :headers="tableHeaders" :items="conversations"
                         :loading="loading" style="font-size: 12px;" density="comfortable" hide-default-footer
@@ -108,15 +110,28 @@
                         <template v-slot:item.actions="{ item }">
                             <div class="actions-wrapper">
                                 <v-btn icon variant="plain" size="x-small" class="action-button"
-                                    @click="viewConversation(item)" :disabled="loading">
+                                    @click="viewConversation(item)" :disabled="loading"
+                                    :title="tm('actions.view')">
                                     <v-icon>mdi-eye</v-icon>
                                 </v-btn>
                                 <v-btn icon variant="plain" size="x-small" class="action-button"
-                                    @click="editConversation(item)" :disabled="loading">
+                                    @click="editConversation(item)" :disabled="loading"
+                                    :title="tm('actions.edit')">
                                     <v-icon>mdi-pencil</v-icon>
                                 </v-btn>
+                                <v-btn icon variant="plain" size="x-small" class="action-button"
+                                    @click="downloadConversation(item)" :disabled="loading"
+                                    :title="tm('actions.download')">
+                                    <v-icon>mdi-download</v-icon>
+                                </v-btn>
+                                <v-btn icon variant="plain" size="x-small" class="action-button"
+                                    @click="triggerUploadConversation(item)" :disabled="loading"
+                                    :title="tm('actions.upload')">
+                                    <v-icon>mdi-upload</v-icon>
+                                </v-btn>
                                 <v-btn icon color="error" variant="plain" size="x-small" class="action-button"
-                                    @click="confirmDeleteConversation(item)" :disabled="loading">
+                                    @click="confirmDeleteConversation(item)" :disabled="loading"
+                                    :title="tm('actions.delete')">
                                     <v-icon>mdi-delete</v-icon>
                                 </v-btn>
                             </div>
@@ -318,6 +333,35 @@
             </v-card>
         </v-dialog>
 
+        <!-- 上传对话二次确认对话框 -->
+        <v-dialog v-model="dialogUploadConfirm" max-width="500px" persistent>
+            <v-card>
+                <v-card-title class="bg-warning text-white py-3">
+                    <v-icon color="white" class="me-2">mdi-upload</v-icon>
+                    <span>{{ tm('dialogs.uploadConfirm.title') }}</span>
+                </v-card-title>
+
+                <v-card-text class="py-4">
+                    <p>{{ tm('dialogs.uploadConfirm.message', { title: uploadTargetItem?.title || tm('status.noTitle') }) }}</p>
+                    <v-alert type="warning" variant="tonal" class="mt-3">
+                        {{ tm('dialogs.uploadConfirm.warning') }}
+                    </v-alert>
+                </v-card-text>
+
+                <v-divider></v-divider>
+
+                <v-card-actions class="pa-4">
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" @click="cancelUploadConversation" :disabled="uploadingConversation">
+                        {{ tm('dialogs.uploadConfirm.cancel') }}
+                    </v-btn>
+                    <v-btn color="primary" @click="confirmUploadConversation" :loading="uploadingConversation">
+                        {{ tm('dialogs.uploadConfirm.confirm') }}
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
         <!-- 消息提示 -->
         <v-snackbar :timeout="3000" elevation="24" :color="messageType" v-model="showMessage" location="top">
             {{ message }}
@@ -381,6 +425,10 @@ export default {
             dialogEdit: false,
             dialogDelete: false,
             dialogBatchDelete: false, // 批量删除对话框
+            dialogUploadConfirm: false, // 上传对话二次确认
+            uploadTargetItem: null, // 当前要上传覆盖的对话项
+            pendingUploadHistory: null, // 解析后的 history 待上传
+            uploadingConversation: false, // 上传请求中
 
             // 选中的对话
             selectedConversation: null,
@@ -794,6 +842,107 @@ export default {
                 this.showErrorMessage(error.response?.data?.message || error.message || this.tm('messages.saveError'));
             } finally {
                 this.loading = false;
+            }
+        },
+
+        // 下载单个对话为 JSON 文件（文件名固定为 {cid}.json，文件式下载）
+        async downloadConversation(item) {
+            try {
+                const response = await axios.post('/api/conversation/detail', {
+                    user_id: item.user_id,
+                    cid: item.cid
+                });
+                if (response.data.status !== 'ok') {
+                    this.showErrorMessage(response.data.message || this.tm('messages.historyError'));
+                    return;
+                }
+                const data = response.data.data;
+                const jsonStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `${item.cid}.json`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+                this.showSuccessMessage(this.tm('messages.downloadSuccess'));
+            } catch (error) {
+                this.showErrorMessage(error.response?.data?.message || error.message || this.tm('messages.exportError'));
+            }
+        },
+
+        // 触发上传：打开文件选择
+        triggerUploadConversation(item) {
+            this.uploadTargetItem = item;
+            this.pendingUploadHistory = null;
+            this.$refs.uploadFileInput?.click();
+        },
+
+        // 文件选择后：解析 JSON，校验通过则弹出二次确认
+        onUploadFileChange(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            event.target.value = '';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target?.result;
+                    if (typeof text !== 'string') {
+                        this.showErrorMessage(this.tm('messages.invalidJson'));
+                        this.uploadTargetItem = null;
+                        return;
+                    }
+                    const parsed = JSON.parse(text);
+                    // 支持两种格式：完整详情 { history, ... } 或纯数组
+                    let history = Array.isArray(parsed) ? parsed : (parsed?.history ?? null);
+                    if (history === null || !Array.isArray(history)) {
+                        this.showErrorMessage(this.tm('messages.uploadInvalidFormat'));
+                        this.uploadTargetItem = null;
+                        return;
+                    }
+                    this.pendingUploadHistory = history;
+                    this.dialogUploadConfirm = true;
+                } catch (err) {
+                    this.showErrorMessage(this.tm('messages.invalidJson'));
+                    this.uploadTargetItem = null;
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+        },
+
+        // 取消上传确认
+        cancelUploadConversation() {
+            this.dialogUploadConfirm = false;
+            this.uploadTargetItem = null;
+            this.pendingUploadHistory = null;
+        },
+
+        // 确认上传：调用接口覆盖数据库
+        async confirmUploadConversation() {
+            if (!this.uploadTargetItem || this.pendingUploadHistory === null) {
+                this.cancelUploadConversation();
+                return;
+            }
+            this.uploadingConversation = true;
+            try {
+                const response = await axios.post('/api/conversation/upload_single', {
+                    user_id: this.uploadTargetItem.user_id,
+                    cid: this.uploadTargetItem.cid,
+                    history: this.pendingUploadHistory
+                });
+                if (response.data.status === 'ok') {
+                    this.showSuccessMessage(this.tm('messages.uploadSuccess'));
+                    this.cancelUploadConversation();
+                    this.fetchConversations();
+                } else {
+                    this.showErrorMessage(response.data.message || this.tm('messages.uploadError'));
+                }
+            } catch (error) {
+                this.showErrorMessage(error.response?.data?.message || error.message || this.tm('messages.uploadError'));
+            } finally {
+                this.uploadingConversation = false;
             }
         },
 
