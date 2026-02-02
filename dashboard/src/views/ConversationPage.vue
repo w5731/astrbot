@@ -67,12 +67,41 @@
 
                 <input ref="uploadFileInput" type="file" accept=".json" style="display: none" @change="onUploadFileChange" />
 
-                <v-card-text class="pa-0">
+                <v-card-text class="pa-0" style="overflow-x: auto;">
                     <v-data-table v-model="selectedItems" :headers="tableHeaders" :items="conversations"
-                        :loading="loading" style="font-size: 12px;" density="comfortable" hide-default-footer
-                        class="elevation-0" :items-per-page="pagination.page_size"
+                        :loading="loading" style="font-size: 12px; min-width: 900px;" density="comfortable" hide-default-footer
+                        class="elevation-0 conversation-data-table" :items-per-page="pagination.page_size"
                         :items-per-page-options="pageSizeOptions" show-select return-object
                         :disabled="loading" @update:options="handleTableOptions">
+                        <template #item.actions="{ item }">
+                            <div class="actions-wrapper">
+                                <v-btn icon variant="plain" size="x-small" class="action-button"
+                                    @click="viewConversation(item)" :disabled="loading"
+                                    :title="tm('actions.view')">
+                                    <v-icon>mdi-eye</v-icon>
+                                </v-btn>
+                                <v-btn icon variant="plain" size="x-small" class="action-button"
+                                    @click="editConversation(item)" :disabled="loading"
+                                    :title="tm('actions.edit')">
+                                    <v-icon>mdi-pencil</v-icon>
+                                </v-btn>
+                                <v-btn icon variant="plain" size="x-small" class="action-button"
+                                    @click="downloadConversation(item)" :disabled="loading"
+                                    :title="tm('actions.download')">
+                                    <v-icon>mdi-download</v-icon>
+                                </v-btn>
+                                <v-btn icon variant="plain" size="x-small" class="action-button"
+                                    @click="triggerUploadConversation(item)" :disabled="loading"
+                                    :title="tm('actions.upload')">
+                                    <v-icon>mdi-upload</v-icon>
+                                </v-btn>
+                                <v-btn icon color="error" variant="plain" size="x-small" class="action-button"
+                                    @click="confirmDeleteConversation(item)" :disabled="loading"
+                                    :title="tm('actions.delete')">
+                                    <v-icon>mdi-delete</v-icon>
+                                </v-btn>
+                            </div>
+                        </template>
                         <template v-slot:item.title="{ item }">
                             <div class="d-flex align-center">
                                 <span>{{ item.title || tm('status.noTitle') }}</span>
@@ -105,36 +134,6 @@
 
                         <template v-slot:item.updated_at="{ item }">
                             {{ formatTimestamp(item.updated_at) }}
-                        </template>
-
-                        <template v-slot:item.actions="{ item }">
-                            <div class="actions-wrapper">
-                                <v-btn icon variant="plain" size="x-small" class="action-button"
-                                    @click="viewConversation(item)" :disabled="loading"
-                                    :title="tm('actions.view')">
-                                    <v-icon>mdi-eye</v-icon>
-                                </v-btn>
-                                <v-btn icon variant="plain" size="x-small" class="action-button"
-                                    @click="editConversation(item)" :disabled="loading"
-                                    :title="tm('actions.edit')">
-                                    <v-icon>mdi-pencil</v-icon>
-                                </v-btn>
-                                <v-btn icon variant="plain" size="x-small" class="action-button"
-                                    @click="downloadConversation(item)" :disabled="loading"
-                                    :title="tm('actions.download')">
-                                    <v-icon>mdi-download</v-icon>
-                                </v-btn>
-                                <v-btn icon variant="plain" size="x-small" class="action-button"
-                                    @click="triggerUploadConversation(item)" :disabled="loading"
-                                    :title="tm('actions.upload')">
-                                    <v-icon>mdi-upload</v-icon>
-                                </v-btn>
-                                <v-btn icon color="error" variant="plain" size="x-small" class="action-button"
-                                    @click="confirmDeleteConversation(item)" :disabled="loading"
-                                    :title="tm('actions.delete')">
-                                    <v-icon>mdi-delete</v-icon>
-                                </v-btn>
-                            </div>
                         </template>
 
                         <template v-slot:no-data>
@@ -482,23 +481,17 @@ export default {
     },
 
     computed: {
-        // 动态表头
+        // 动态表头（操作列在最后一列，表头不换行）
         tableHeaders() {
             return [
-                { title: this.tm('table.headers.title'), key: 'title', sortable: true },
+                { title: this.tm('table.headers.title'), key: 'title', sortable: true, minWidth: '120px' },
                 { title: this.tm('table.headers.cid'), key: 'cid', sortable: true, width: '100px' },
-                {
-                    title: this.tm('table.headers.umo'),
-                    align: 'center',
-                    children: [
-                        { title: this.tm('table.headers.platform'), key: 'platform', sortable: true, width: '120px' },
-                        { title: this.tm('table.headers.type'), key: 'messageType', sortable: true, width: '100px' },
-                        { title: this.tm('table.headers.sessionId'), key: 'sessionId', sortable: true, width: '100px' },
-                    ],
-                },
+                { title: this.tm('table.headers.platform'), key: 'platform', sortable: true, width: '120px' },
+                { title: this.tm('table.headers.type'), key: 'messageType', sortable: true, width: '100px' },
+                { title: this.tm('table.headers.sessionId'), key: 'sessionId', sortable: true, width: '140px' },
                 { title: this.tm('table.headers.createdAt'), key: 'created_at', sortable: true, width: '180px' },
                 { title: this.tm('table.headers.updatedAt'), key: 'updated_at', sortable: true, width: '180px' },
-                { title: this.tm('table.headers.actions'), key: 'actions', sortable: false, align: 'center', width: '220px' }
+                { title: this.tm('table.headers.actions'), key: 'actions', value: 'actions', sortable: false, align: 'center', width: '240px' },
             ];
         },
 
@@ -845,7 +838,7 @@ export default {
             }
         },
 
-        // 下载单个对话为 JSON 文件（文件名固定为 {cid}.json，文件式下载）
+        // 下载单个对话为 JSON 文件：仅包含 history 数组（消息列表），文件名 {cid}.json
         async downloadConversation(item) {
             try {
                 const response = await axios.post('/api/conversation/detail', {
@@ -857,7 +850,18 @@ export default {
                     return;
                 }
                 const data = response.data.data;
-                const jsonStr = JSON.stringify(data, null, 2);
+                let historyArray = data.history;
+                if (typeof historyArray === 'string') {
+                    try {
+                        historyArray = JSON.parse(historyArray);
+                    } catch {
+                        historyArray = [];
+                    }
+                }
+                if (!Array.isArray(historyArray)) {
+                    historyArray = [];
+                }
+                const jsonStr = JSON.stringify(historyArray, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -1223,12 +1227,24 @@ export default {
 </script>
 
 <style>
+/* 表头不换行，操作列在最后一列（第9列：复选框+8列数据） */
+.conversation-data-table :deep(thead th) {
+    white-space: nowrap;
+}
+.conversation-data-table :deep(thead th:last-child),
+.conversation-data-table :deep(tbody td:last-child) {
+    min-width: 240px;
+    white-space: nowrap;
+}
+.conversation-data-table :deep(.v-data-table__td) {
+    vertical-align: middle;
+}
 .actions-wrapper {
-    display: flex;
+    display: inline-flex;
     flex-wrap: nowrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     min-width: 200px;
 }
 
