@@ -25,17 +25,6 @@ jobs:
           short_sha=$(echo "${GITHUB_SHA}" | cut -c1-12)
           echo "tag=$short_sha" >> $GITHUB_OUTPUT
 
-      - name: Build Dashboard
-        run: |
-          cd dashboard
-          npm install
-          npm run build
-          mkdir -p dist/assets
-          echo ${{ github.sha }} > dist/assets/version
-          cd ..
-          mkdir -p data
-          cp -r dashboard/dist data/
-
       - name: Set QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -65,4 +54,6 @@ jobs:
           push: ${{ env.HAS_DOCKER_HUB == 'true' || env.HAS_GHCR_TOKEN == 'true' }}
           tags: |
             ${{ env.HAS_DOCKER_HUB == 'true' && format('{0}/astrbot:{1}', env.DOCKER_HUB_USERNAME, steps.meta.outputs.tag) || (env.HAS_GHCR_TOKEN != 'true' && 'astrbot:local') || '' }}
+            ${{ env.HAS_DOCKER_HUB == 'true' && format('{0}/astrbot:latest', env.DOCKER_HUB_USERNAME) || '' }}
             ${{ env.HAS_GHCR_TOKEN == 'true' && format('ghcr.io/{0}/astrbot:{1}', env.GHCR_OWNER, steps.meta.outputs.tag) || '' }}
+            ${{ env.HAS_GHCR_TOKEN == 'true' && format('ghcr.io/{0}/astrbot:latest', env.GHCR_OWNER) || '' }}

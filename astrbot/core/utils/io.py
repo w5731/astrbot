@@ -229,8 +229,10 @@ def get_local_ip_addresses():
     return network_ips
 
 
-async def get_dashboard_version():
-    dist_dir = os.path.join(get_astrbot_data_path(), "dist")
+async def get_dashboard_version(dist_dir: str | None = None):
+    """Return dashboard version from dist/assets/version, or None."""
+    if dist_dir is None:
+        dist_dir = os.path.join(get_astrbot_data_path(), "dist")
     if os.path.exists(dist_dir):
         version_file = os.path.join(dist_dir, "assets", "version")
         if os.path.exists(version_file):
