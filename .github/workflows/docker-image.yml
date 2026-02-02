@@ -25,6 +25,26 @@ jobs:
           short_sha=$(echo "${GITHUB_SHA}" | cut -c1-12)
           echo "tag=$short_sha" >> $GITHUB_OUTPUT
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: Build Dashboard
+        run: |
+          cd dashboard
+          pnpm install
+          pnpm run build
+          mkdir -p dist/assets
+          echo "built-in" > dist/assets/version
+
       - name: Set QEMU
         uses: docker/setup-qemu-action@v3
 
