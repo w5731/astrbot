@@ -44,6 +44,9 @@ jobs:
           pnpm run build
           mkdir -p dist/assets
           echo "built-in" > dist/assets/version
+          cd ..
+          mkdir -p dashboard_dist
+          cp -r dashboard/dist/. dashboard_dist/
 
       - name: Set QEMU
         uses: docker/setup-qemu-action@v3
