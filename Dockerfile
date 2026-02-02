@@ -23,10 +23,9 @@ RUN apt-get update && apt-get install -y curl gnupg \
     && apt-get install -y nodejs
 
 # Build built-in frontend so main.py uses dashboard/dist (no data/dist or download)
-RUN corepack enable pnpm \
-    && cd /AstrBot/dashboard \
-    && pnpm install \
-    && pnpm run build \
+RUN cd /AstrBot/dashboard \
+    && npm install \
+    && npm run build \
     && mkdir -p dist/assets \
     && echo "built-in" > dist/assets/version
 
