@@ -264,8 +264,9 @@ class ProviderOpenAIOfficial(Provider):
         # the priority is higher than the <think> tag extraction
         llm_response.reasoning_content = self._extract_reasoning_content(completion)
 
-        # parse tool calls if any
-        if choice.message.tool_calls and tools is not None:
+        # parse tool calls if any (always parse when API returns tool_calls,
+        # even when tools is None or tool name is not in tools.func_list)
+        if choice.message.tool_calls:
             args_ls = []
             func_name_ls = []
             tool_call_ids = []
@@ -274,33 +275,42 @@ class ProviderOpenAIOfficial(Provider):
                 if isinstance(tool_call, str):
                     # workaround for #1359
                     tool_call = json.loads(tool_call)
-                if tools is None:
-                    # 工具集未提供
-                    # Should be unreachable
-                    raise Exception("工具集未提供")
-                for tool in tools.func_list:
-                    if (
-                        tool_call.type == "function"
-                        and tool.name == tool_call.function.name
-                    ):
-                        # workaround for #1454
-                        if isinstance(tool_call.function.arguments, str):
-                            args = json.loads(tool_call.function.arguments)
-                        else:
-                            args = tool_call.function.arguments
-                        args_ls.append(args)
-                        func_name_ls.append(tool_call.function.name)
-                        tool_call_ids.append(tool_call.id)
-
-                        # gemini-2.5 / gemini-3 series extra_content handling
-                        extra_content = getattr(tool_call, "extra_content", None)
-                        if extra_content is not None:
-                            tool_call_extra_content_dict[tool_call.id] = extra_content
-            llm_response.role = "tool"
-            llm_response.tools_call_args = args_ls
-            llm_response.tools_call_name = func_name_ls
-            llm_response.tools_call_ids = tool_call_ids
-            llm_response.tools_call_extra_content = tool_call_extra_content_dict
+                # Support OpenAI and Gemini-style: type may be "function" or unset
+                call_type = getattr(tool_call, "type", "function")
+                if call_type != "function":
+                    continue
+                func = getattr(tool_call, "function", None)
+                if func is None:
+                    continue
+                name = getattr(func, "name", None)
+                if not name:
+                    continue
+                raw_args = getattr(func, "arguments", None)
+                if isinstance(raw_args, str):
+                    try:
+                        args = json.loads(raw_args)
+                    except json.JSONDecodeError:
+                        args = {}
+                else:
+                    args = raw_args if raw_args is not None else {}
+                tc_id = getattr(tool_call, "id", None) or ""
+                args_ls.append(args)
+                func_name_ls.append(name)
+                tool_call_ids.append(tc_id)
+                # gemini-2.5 / gemini-3 series extra_content when tool matches
+                if tools is not None:
+                    for tool in tools.func_list:
+                        if tool.name == name:
+                            extra_content = getattr(tool_call, "extra_content", None)
+                            if extra_content is not None:
+                                tool_call_extra_content_dict[tc_id] = extra_content
+                            break
+            if args_ls:
+                llm_response.role = "tool"
+                llm_response.tools_call_args = args_ls
+                llm_response.tools_call_name = func_name_ls
+                llm_response.tools_call_ids = tool_call_ids
+                llm_response.tools_call_extra_content = tool_call_extra_content_dict
         # specially handle finish reason
         if choice.finish_reason == "content_filter":
             raise Exception(
